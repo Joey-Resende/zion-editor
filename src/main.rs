@@ -1,5 +1,5 @@
 use iced::executor;
-use iced::{Application, Command, Element, Length, Settings, Theme};
+use iced::{Application, Command, Element, Font, Length, Settings, Theme};
 use iced::widget::{button, column, container, horizontal_space, row, text, text_editor};
 
 
@@ -8,7 +8,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 fn main() -> iced::Result {
-    Zion::run(Settings::default())
+    Zion::run(Settings {
+        fonts: vec![include_bytes!("../fonts/editor-icons.ttf")
+            .as_slice()
+            .into()],
+        ..Settings::default()
+    })
 }
 
 
@@ -101,10 +106,11 @@ impl Application for Zion {
 
     fn view(&self) -> Element<'_, Message> {
         let controls = row![
-            button("New").on_press(Message::New), 
-            button("Open").on_press(Message::Open),
-            button("Save").on_press(Message::Save)
-        ];
+            action(new_icon(), Message::New), 
+            action(open_icon(), Message::Open),
+            action(save_icon(), Message::Save)
+        ]
+        .spacing(10);
 
         let input = text_editor(&self.content).on_edit(Message::Edit);
         
@@ -133,6 +139,38 @@ impl Application for Zion {
     fn theme(&self) -> Theme {
         Theme::Dark
     }
+}
+
+
+fn action<'a>(content: Element<'a, Message>, on_press: Message) -> Element<'a, Message> {
+    button(container(content)
+        .width(30)
+        .center_x())
+        .on_press(on_press)
+        .padding([5, 10])
+        .into()
+}
+
+
+fn new_icon<'a>() -> Element<'a, Message> {
+    icon('\u{E800}')
+}
+
+
+fn open_icon<'a>() -> Element<'a, Message> {
+    icon('\u{F115}')
+}
+
+
+fn save_icon<'a>() -> Element<'a, Message> {
+    icon('\u{E801}')
+}
+
+
+fn icon<'a>(codepoint: char) -> Element<'a, Message> {
+    const ICON_FONT: Font = Font::with_name("editor-icons");
+
+    text(codepoint).font(ICON_FONT).into()
 }
 
 
