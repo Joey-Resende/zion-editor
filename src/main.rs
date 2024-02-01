@@ -1,5 +1,6 @@
 use iced::executor;
-use iced::{Application, Command, Element, Font, Length, Settings, Theme};
+use iced::keyboard;
+use iced::{Application, Command, Element, Font, Length, Settings, Subscription, Theme};
 use iced::widget::{button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip};
 use iced::theme;
 use iced::highlighter::{self, Highlighter};
@@ -24,6 +25,7 @@ struct Zion {
     content: text_editor::Content,
     error: Option<Error>,
     theme: highlighter::Theme,
+    is_dirty: bool, 
 } 
 
 
@@ -52,6 +54,7 @@ impl Application for Zion {
                 content: text_editor::Content::new(),
                 error: None,
                 theme: highlighter::Theme::SolarizedDark,
+                is_dirty: true,
             }, 
             Command::perform(
                 load_file(default_file()),
@@ -61,21 +64,23 @@ impl Application for Zion {
     }
 
     fn title(&self) -> String {
-        String::from("A best editor")
+        String::from("Zion editor")
     }
  
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Edit(action) => {
-                self.content.edit(action);
-
+                self.is_dirty = self.is_dirty || action.is_edit();
                 self.error = None;
+
+                self.content.edit(action);
 
                 Command::none()
             }
             Message::New => {
                 self.path = None;
                 self.content = text_editor::Content::new();
+                self.is_dirty = true;
 
                 Command::none()
             }
@@ -83,6 +88,7 @@ impl Application for Zion {
             Message::FileOpened(Ok((path, content))) => {
                 self.path = Some(path);
                 self.content = text_editor::Content::with(&content);
+                self.is_dirty = false;
 
                 Command::none()
             }
@@ -98,6 +104,7 @@ impl Application for Zion {
             }
             Message::FileSaved(Ok(path)) => {
                 self.path = Some(path);
+                self.is_dirty = false;
                 
                 Command::none()
             }
@@ -114,11 +121,20 @@ impl Application for Zion {
         }
     }
 
+    fn subscription(&self) -> Subscription<Message> {
+        keyboard::on_key_press(|key_code, modifiers| {
+            match key_code {
+                keyboard::KeyCode::S if modifiers.command() => Some(Message::Save),
+                _ => None,
+            }
+        })
+    }
+
     fn view(&self) -> Element<'_, Message> {
         let controls = row![
-            action(new_icon(), "New file", Message::New), 
-            action(open_icon(), "Open file", Message::Open),
-            action(save_icon(), "Save file", Message::Save),
+            action(new_icon(), "New file", Some(Message::New)), 
+            action(open_icon(), "Open file", Some(Message::Open)),
+            action(save_icon(), "Save file", self.is_dirty.then_some(Message::Save)),
             horizontal_space(Length::Fill),
             pick_list(highlighter::Theme::ALL, Some(self.theme), Message::ThemeSelected)
         ]
@@ -174,14 +190,19 @@ impl Application for Zion {
 fn action<'a>(
     content: Element<'a, Message>, 
     label: &str, 
-    on_press: Message,
+    on_press: Option<Message>,
 ) -> Element<'a, Message> {
+    let is_disabled = on_press.is_none();
+
     tooltip(
-        button(container(content)
-            .width(30)
-            .center_x())
-            .on_press(on_press)
-            .padding([5, 10]),
+        button(container(content).width(30).center_x())
+            .on_press_maybe(on_press)
+            .padding([5, 10])
+            .style(if is_disabled {
+                theme::Button::Secondary
+            } else {
+                theme::Button::Primary
+            }),
         label, 
         tooltip::Position::FollowCursor,
     )
