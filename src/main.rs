@@ -1,6 +1,6 @@
 use iced::executor;
 use iced::{Application, Command, Element, Font, Length, Settings, Theme};
-use iced::widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip};
+use iced::widget::{button, column, container, horizontal_space, pick_list, row, text, text_editor, tooltip};
 use iced::theme;
 use iced::highlighter::{self, Highlighter};
 
@@ -23,6 +23,7 @@ struct Zion {
     path: Option<PathBuf>,
     content: text_editor::Content,
     error: Option<Error>,
+    theme: highlighter::Theme,
 } 
 
 
@@ -34,6 +35,7 @@ enum Message {
     FileOpened(Result<(PathBuf, Arc<String>), Error>),
     Save,
     FileSaved(Result<PathBuf, Error>),
+    ThemeSelected(highlighter::Theme),
 }
 
 
@@ -49,6 +51,7 @@ impl Application for Zion {
                 path: None, 
                 content: text_editor::Content::new(),
                 error: None,
+                theme: highlighter::Theme::SolarizedDark,
             }, 
             Command::perform(
                 load_file(default_file()),
@@ -103,6 +106,11 @@ impl Application for Zion {
 
                 Command::none()
             }
+            Message::ThemeSelected(theme) => {
+                self.theme = theme;
+
+                Command::none()
+            }
         }
     }
 
@@ -110,7 +118,9 @@ impl Application for Zion {
         let controls = row![
             action(new_icon(), "New file", Message::New), 
             action(open_icon(), "Open file", Message::Open),
-            action(save_icon(), "Save file", Message::Save)
+            action(save_icon(), "Save file", Message::Save),
+            horizontal_space(Length::Fill),
+            pick_list(highlighter::Theme::ALL, Some(self.theme), Message::ThemeSelected)
         ]
         .spacing(10);
 
@@ -118,7 +128,7 @@ impl Application for Zion {
             .on_edit(Message::Edit)
             .highlight::<Highlighter>(
                 highlighter::Settings {
-                    theme: highlighter::Theme::SolarizedDark,
+                    theme: self.theme,
                     extension: self
                         .path
                         .as_ref()
@@ -152,7 +162,11 @@ impl Application for Zion {
     }
 
     fn theme(&self) -> Theme {
-        Theme::Dark
+        if self.theme.is_dark() {
+            Theme::Dark
+        } else {
+            Theme::Light
+        }
     }
 }
 
