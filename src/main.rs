@@ -234,7 +234,7 @@ fn icon<'a>(codepoint: char) -> Element<'a, Message> {
 
 
 fn default_file() -> PathBuf {
-    PathBuf::from(format!("{}/srs/main.rs", env!("CARGO_MANIFEST_DIR")))
+    PathBuf::from(format!("{}/src/main.rs", env!("CARGO_MANIFEST_DIR")))
 }
 
 
