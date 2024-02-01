@@ -1,7 +1,8 @@
 use iced::executor;
 use iced::{Application, Command, Element, Font, Length, Settings, Theme};
-use iced::widget::{button, column, container, horizontal_space, row, text, text_editor};
-
+use iced::widget::{button, column, container, horizontal_space, row, text, text_editor, tooltip};
+use iced::theme;
+use iced::highlighter::{self, Highlighter};
 
 use std::io;
 use std::path::{Path, PathBuf};
@@ -9,6 +10,7 @@ use std::sync::Arc;
 
 fn main() -> iced::Result {
     Zion::run(Settings {
+        default_font: Font::MONOSPACE,
         fonts: vec![include_bytes!("../fonts/editor-icons.ttf")
             .as_slice()
             .into()],
@@ -106,13 +108,26 @@ impl Application for Zion {
 
     fn view(&self) -> Element<'_, Message> {
         let controls = row![
-            action(new_icon(), Message::New), 
-            action(open_icon(), Message::Open),
-            action(save_icon(), Message::Save)
+            action(new_icon(), "New file", Message::New), 
+            action(open_icon(), "Open file", Message::Open),
+            action(save_icon(), "Save file", Message::Save)
         ]
         .spacing(10);
 
-        let input = text_editor(&self.content).on_edit(Message::Edit);
+        let input = text_editor(&self.content)
+            .on_edit(Message::Edit)
+            .highlight::<Highlighter>(
+                highlighter::Settings {
+                    theme: highlighter::Theme::SolarizedDark,
+                    extension: self
+                        .path
+                        .as_ref()
+                        .and_then(|path| path.extension()?.to_str())
+                        .unwrap_or("rs")
+                        .to_string(),
+                },
+                |highlight, _theme| highlight.to_format(),
+        );
         
         let status_bar = {
             let status = if let Some(Error::IOFailed(error)) = self.error.as_ref() {
@@ -142,13 +157,22 @@ impl Application for Zion {
 }
 
 
-fn action<'a>(content: Element<'a, Message>, on_press: Message) -> Element<'a, Message> {
-    button(container(content)
-        .width(30)
-        .center_x())
-        .on_press(on_press)
-        .padding([5, 10])
-        .into()
+fn action<'a>(
+    content: Element<'a, Message>, 
+    label: &str, 
+    on_press: Message,
+) -> Element<'a, Message> {
+    tooltip(
+        button(container(content)
+            .width(30)
+            .center_x())
+            .on_press(on_press)
+            .padding([5, 10]),
+        label, 
+        tooltip::Position::FollowCursor,
+    )
+    .style(theme::Container::Box)
+    .into()
 }
 
 
